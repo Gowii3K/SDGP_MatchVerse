@@ -1,13 +1,15 @@
-name: Deploy to Azure App Service
+name: Build and deploy to Azure App Service
 
 on:
-  push: 
-    branches: 
+  push:
+    branches:
       - app-service-deployment
+  workflow_dispatch:
 
-jobs: 
+jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Source
         uses: actions/checkout@v3
