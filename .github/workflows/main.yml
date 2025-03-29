@@ -72,5 +72,5 @@ jobs:
         with:
           app-name: 'match-verse'
           slot-name: 'Production'
-          package: .
+          package: './match-verse-server'
 
