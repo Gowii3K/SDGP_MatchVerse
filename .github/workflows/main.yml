@@ -18,14 +18,18 @@ jobs:
           node-version: '18.x'
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          cd match-verse-server
+          npm install
 
       - name: Build Application
-        run: npm run build
+        run: |
+          cd match-verse-server
+          npm run build
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v2
         with:
           app-name: matchverse
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .
+          package: match-verse-server
