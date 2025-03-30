@@ -17,9 +17,10 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'npm'
+          cache-dependency-path: 'match-verse-server/package-lock.json'  # Updated path
 
       - name: Install Production Dependencies
-        working-directory: match-verse-server
+        working-directory: match-verse-server  # All subsequent steps use this
         run: |
           npm config set ignore-scripts true
           npm ci --omit=dev
@@ -29,14 +30,11 @@ jobs:
         working-directory: match-verse-server
         run: |
           npm install --save-dev @nestjs/cli @types/express @types/node
-          echo "::add-path::$(npm bin -g)"
           echo "Nest CLI version: $(npx nest --version)"
 
       - name: Build Application
         working-directory: match-verse-server
-        run: |
-          npx nest build
-          ls -la dist/
+        run: npx nest build
 
       - name: Create Deployment Package
         working-directory: match-verse-server
