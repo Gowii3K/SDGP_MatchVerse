@@ -29,7 +29,12 @@ jobs:
       - name: Install NestJS CLI
         run: |
           cd match-verse-server
-          npm install -g @nestjs/cli  # ✅ Ensure `nest` command is available
+          npm install -g @nestjs/cli  # Ensure `nest` command is available
+
+      - name: Install Missing Type Definitions
+        run: |
+          cd match-verse-server
+          npm install --save-dev @types/express  # ✅ Fix Express.Multer.File errors
 
       - name: Generate Prisma Client
         run: |
