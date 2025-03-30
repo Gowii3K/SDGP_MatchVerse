@@ -3,11 +3,8 @@ name: Build and Deploy to Azure App Service
 on:
   push:
     branches:
-      - app-service-deployment
+      - main
   workflow_dispatch:
-
-env:
-  NODE_ENV: production
 
 jobs:
   build-and-deploy:
@@ -27,13 +24,9 @@ jobs:
       - name: Install Dependencies
         working-directory: match-verse-server
         run: |
-          npm ci --omit=dev
-          npm install @nestjs/cli --no-save  # Install locally without saving to package.json
-
-      - name: Install Type Definitions (dev only)
-        working-directory: match-verse-server
-        run: |
-          npm install --save-dev @types/express @types/node
+          npm ci --include=dev
+          npm install -g @nestjs/cli
+          npm link @nestjs/cli
 
       - name: Generate Prisma Client
         working-directory: match-verse-server
@@ -47,24 +40,19 @@ jobs:
 
       - name: Build Application
         working-directory: match-verse-server
-        run: |
-          npm run build
+        run: npm run build
 
-      - name: Create deployment artifacts
+      - name: Create deployment package
         working-directory: match-verse-server
         run: |
           mkdir -p deployment
-          # Copy only necessary files
           cp -r dist package.json package-lock.json prisma deployment/
-          # Install production dependencies in deployment folder
           cd deployment && npm ci --omit=dev
 
-      - name: Zip Application for Deployment
-        run: |
-          cd match-verse-server/deployment
-          zip -r ../../app.zip .
+      - name: Zip for deployment
+        run: cd match-verse-server/deployment && zip -r ../../app.zip .
 
-      - name: Deploy to Azure App Service
+      - name: Deploy to Azure
         uses: azure/webapps-deploy@v2
         with:
           app-name: matchverse
