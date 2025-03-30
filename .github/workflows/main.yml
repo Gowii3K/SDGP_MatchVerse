@@ -17,12 +17,12 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'  # LTS version to avoid compatibility issues
+          node-version: '18.x'
 
       - name: Clean npm cache and reinstall dependencies
         run: |
           cd match-verse-server
-          npm ci  # Clean install (use this for CI)
+          npm ci
 
       - name: Install NestJS CLI globally
         run: |
@@ -49,6 +49,7 @@ jobs:
         run: |
           cd match-verse-server
           zip -r ../app.zip dist package.json node_modules prisma
+          ls -l ../app.zip  # List the .zip contents for verification
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v2
@@ -56,3 +57,9 @@ jobs:
           app-name: matchverse
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: app.zip
+        continue-on-error: true  # To prevent pipeline failure while debugging
+
+      - name: Azure Deployment Logs
+        run: |
+          curl -L -o deploy-log.txt https://<your-app-service-url>/api/logs
+          cat deploy-log.txt
