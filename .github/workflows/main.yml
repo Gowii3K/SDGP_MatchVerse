@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  NODE_ENV: production
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -21,12 +24,20 @@ jobs:
           cache: 'npm'
           cache-dependency-path: match-verse-server/package-lock.json
 
-      - name: Install Dependencies
+      - name: Install Dependencies (production only)
         working-directory: match-verse-server
         run: |
-          npm ci --include=dev
-          npm install -g @nestjs/cli
-          npm link @nestjs/cli
+          # Skip husky installation in CI
+          npm config set ignore-scripts true
+          npm ci --omit=dev
+          npm config set ignore-scripts false
+
+      - name: Install Build Dependencies
+        working-directory: match-verse-server
+        run: |
+          npm install --save-dev @nestjs/cli @types/express @types/node
+          # Verify nest is available
+          npx nest --version
 
       - name: Generate Prisma Client
         working-directory: match-verse-server
@@ -40,16 +51,18 @@ jobs:
 
       - name: Build Application
         working-directory: match-verse-server
-        run: npm run build
+        run: |
+          npx nest build
 
-      - name: Create deployment package
+      - name: Create Clean Deployment Package
         working-directory: match-verse-server
         run: |
           mkdir -p deployment
           cp -r dist package.json package-lock.json prisma deployment/
+          # Clean up dev dependencies from deployment
           cd deployment && npm ci --omit=dev
 
-      - name: Zip for deployment
+      - name: Zip for Deployment
         run: cd match-verse-server/deployment && zip -r ../../app.zip .
 
       - name: Deploy to Azure
