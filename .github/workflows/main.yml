@@ -1,65 +1,97 @@
 name: Build and deploy to Azure App Service
-
 on:
   push:
     branches:
       - app-service-deployment
   workflow_dispatch:
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v3
-
+      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
-
+          node-version: '20.x'  # Updated to Node 20 to match your environment
+      
       - name: Clean npm cache and reinstall dependencies
         run: |
           cd match-verse-server
           npm ci
-
-      - name: Install NestJS CLI globally
+      
+      - name: Install NestJS CLI
         run: |
-          npm install -g @nestjs/cli
-
+          cd match-verse-server
+          npm install --save-dev @nestjs/cli
+      
       - name: Generate Prisma Client
         run: |
           cd match-verse-server
           npx prisma generate
-
+      
       - name: Run Prisma Migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           cd match-verse-server
           npx prisma migrate deploy
-
+      
       - name: Build Application
         run: |
           cd match-verse-server
           npm run build
-
-      - name: Zip Application for Deployment
+      
+      - name: Prepare for Deployment
         run: |
           cd match-verse-server
-          zip -r ../app.zip dist package.json node_modules prisma
-          ls -l ../app.zip  # List the .zip contents for verification
-
+          # Include all necessary files for a NestJS app
+          cp -r package*.json dist/
+          cp -r node_modules dist/
+          cp -r prisma dist/
+          
+          # Create a proper web.config for Azure App Service
+          echo '<?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <handlers>
+                <add name="iisnode" path="main.js" verb="*" modules="iisnode" />
+              </handlers>
+              <rewrite>
+                <rules>
+                  <rule name="main">
+                    <match url="/*" />
+                    <action type="Rewrite" url="main.js" />
+                  </rule>
+                </rules>
+              </rewrite>
+            </system.webServer>
+          </configuration>' > dist/web.config
+          
+          # Create startup script
+          echo 'cd dist && node main.js' > dist/startup.sh
+          chmod +x dist/startup.sh
+      
+      - name: Zip Application for Deployment
+        run: |
+          cd match-verse-server/dist
+          zip -r ../../app.zip .
+          cd ../..
+          ls -la app.zip  # List the .zip file for verification
+      
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v2
         with:
           app-name: matchverse
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: app.zip
-        continue-on-error: true  # To prevent pipeline failure while debugging
-
+      
       - name: Azure Deployment Logs
+        if: always()
         run: |
-          curl -L -o deploy-log.txt https://<your-app-service-url>/api/logs
-          cat deploy-log.txt
+          # Replace with your actual app service URL
+          curl -L -o deploy-log.txt https://matchverse.azurewebsites.net/api/logs || echo "Could not fetch logs"
+          if [ -f deploy-log.txt ]; then
+            cat deploy-log.txt
+          fi
