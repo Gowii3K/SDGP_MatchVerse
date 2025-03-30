@@ -56,7 +56,7 @@ jobs:
       - name: Zip Application for Deployment
         run: |
           cd match-verse-server
-          zip -r ../app.zip . deployment package*.json node_modules dist prisma
+          zip -r ../app.zip . deployment package*.json dist prisma
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v2
