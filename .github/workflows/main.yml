@@ -23,6 +23,7 @@ jobs:
         run: |
           cd match-verse-server
           npm install
+          npm install -g @nestjs/cli  # Install Nest CLI globally to ensure it's available
 
       - name: Generate Prisma Client
         run: |
