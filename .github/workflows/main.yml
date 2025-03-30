@@ -17,13 +17,16 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '18.x'  # LTS version to avoid compatibility issues
 
-      - name: Install Dependencies
+      - name: Clean npm cache and reinstall dependencies
         run: |
           cd match-verse-server
-          npm install
-          npm install -g @nestjs/cli  # Install Nest CLI globally to ensure it's available
+          npm ci  # Clean install (use this for CI)
+
+      - name: Install NestJS CLI globally
+        run: |
+          npm install -g @nestjs/cli
 
       - name: Generate Prisma Client
         run: |
