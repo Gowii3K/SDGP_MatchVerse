@@ -17,14 +17,20 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'npm'
-          cache-dependency-path: 'match-verse-server/package-lock.json'  # Updated path
+          cache-dependency-path: 'match-verse-server/package-lock.json'
 
-      - name: Install Production Dependencies
-        working-directory: match-verse-server  # All subsequent steps use this
+      - name: Install Dependencies
+        working-directory: match-verse-server
         run: |
           npm config set ignore-scripts true
-          npm ci --omit=dev
+          npm ci
           npm config set ignore-scripts false
+
+      - name: Generate Prisma Client
+        working-directory: match-verse-server
+        run: |
+          npx prisma generate
+          ls -la node_modules/.prisma/client/
 
       - name: Install Build Tools
         working-directory: match-verse-server
@@ -34,13 +40,21 @@ jobs:
 
       - name: Build Application
         working-directory: match-verse-server
-        run: npx nest build
+        run: |
+          npx nest build
+          ls -la dist/
+
+      - name: Run Prisma Migrations
+        working-directory: match-verse-server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx prisma migrate deploy
 
       - name: Create Deployment Package
         working-directory: match-verse-server
         run: |
           mkdir -p deployment
-          cp -r dist package.json package-lock.json prisma deployment/
+          cp -r dist package.json package-lock.json prisma node_modules/.prisma deployment/
           cd deployment && npm ci --omit=dev
 
       - name: Deploy to Azure
