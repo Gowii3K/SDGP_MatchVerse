@@ -6,6 +6,9 @@ on:
       - app-service-deployment
   workflow_dispatch:
 
+env:
+  NODE_ENV: production
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -22,41 +25,44 @@ jobs:
           cache-dependency-path: match-verse-server/package-lock.json
 
       - name: Install Dependencies
+        working-directory: match-verse-server
         run: |
-          cd match-verse-server
-          npm ci --omit=dev  # Install only production dependencies
+          npm ci --omit=dev
+          npm install @nestjs/cli --no-save  # Install locally without saving to package.json
 
-      - name: Install NestJS CLI
+      - name: Install Type Definitions (dev only)
+        working-directory: match-verse-server
         run: |
-          cd match-verse-server
-          npm install -g @nestjs/cli  # Ensure `nest` command is available
-
-      - name: Install Missing Type Definitions
-        run: |
-          cd match-verse-server
-          npm install --save-dev @types/express  # ✅ Fix Express.Multer.File errors
+          npm install --save-dev @types/express @types/node
 
       - name: Generate Prisma Client
-        run: |
-          cd match-verse-server
-          npx prisma generate
+        working-directory: match-verse-server
+        run: npx prisma generate
 
       - name: Run Prisma Migrations
+        working-directory: match-verse-server
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          cd match-verse-server
-          npx prisma migrate deploy
+        run: npx prisma migrate deploy
 
       - name: Build Application
+        working-directory: match-verse-server
         run: |
-          cd match-verse-server
-          nest build  # ✅ Now `nest build` should work
+          npm run build
+
+      - name: Create deployment artifacts
+        working-directory: match-verse-server
+        run: |
+          mkdir -p deployment
+          # Copy only necessary files
+          cp -r dist package.json package-lock.json prisma deployment/
+          # Install production dependencies in deployment folder
+          cd deployment && npm ci --omit=dev
 
       - name: Zip Application for Deployment
         run: |
-          cd match-verse-server
-          zip -r ../app.zip . deployment package*.json dist prisma
+          cd match-verse-server/deployment
+          zip -r ../../app.zip .
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v2
@@ -64,4 +70,3 @@ jobs:
           app-name: matchverse
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: app.zip
-
