@@ -24,7 +24,12 @@ jobs:
       - name: Install Dependencies
         run: |
           cd match-verse-server
-          npm ci --omit=dev # Install only production dependencies
+          npm ci --omit=dev  # Install only production dependencies
+
+      - name: Install NestJS CLI
+        run: |
+          cd match-verse-server
+          npm install -g @nestjs/cli  # ✅ Ensure `nest` command is available
 
       - name: Generate Prisma Client
         run: |
@@ -41,29 +46,12 @@ jobs:
       - name: Build Application
         run: |
           cd match-verse-server
-          npm run build
-
-      - name: Set Azure App Service Configurations
-        run: |
-          az webapp config appsettings set --name matchverse \
-          --resource-group <RESOURCE_GROUP> \
-          --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false
-
-      - name: Prepare for Deployment
-        run: |
-          cd match-verse-server
-          npm ci --omit=dev  # Ensure only production dependencies are included
-
-          # Create startup script
-          echo '#!/bin/sh
-          cd /home/site/wwwroot
-          node main.js' > run.sh
-          chmod +x run.sh
+          nest build  # ✅ Now `nest build` should work
 
       - name: Zip Application for Deployment
         run: |
           cd match-verse-server
-          zip -r ../app.zip . deployment run.sh package*.json node_modules dist prisma
+          zip -r ../app.zip . deployment package*.json node_modules dist prisma
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v2
@@ -71,4 +59,4 @@ jobs:
           app-name: matchverse
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: app.zip
-          clean: true  # Ensures a clean deployment by removing old files
+          clean: true  # Ensures a clean deployment
