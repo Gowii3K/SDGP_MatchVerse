@@ -14,17 +14,12 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'  # Updated to Node 20 to match your environment
+          node-version: '20.x'
       
-      - name: Clean npm cache and reinstall dependencies
+      - name: Install dependencies
         run: |
           cd match-verse-server
-          npm ci
-      
-      - name: Install NestJS CLI
-        run: |
-          cd match-verse-server
-          npm install --save-dev @nestjs/cli
+          npm ci --production=false # Install both prod and dev dependencies
       
       - name: Generate Prisma Client
         run: |
@@ -46,39 +41,37 @@ jobs:
       - name: Prepare for Deployment
         run: |
           cd match-verse-server
-          # Include all necessary files for a NestJS app
-          cp -r package*.json dist/
-          cp -r node_modules dist/
-          cp -r prisma dist/
           
-          # Create a proper web.config for Azure App Service
-          echo '<?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <system.webServer>
-              <handlers>
-                <add name="iisnode" path="main.js" verb="*" modules="iisnode" />
-              </handlers>
-              <rewrite>
-                <rules>
-                  <rule name="main">
-                    <match url="/*" />
-                    <action type="Rewrite" url="main.js" />
-                  </rule>
-                </rules>
-              </rewrite>
-            </system.webServer>
-          </configuration>' > dist/web.config
+          # Install production dependencies (including @nestjs/cli)
+          npm install --production
           
-          # Create startup script
-          echo 'cd dist && node main.js' > dist/startup.sh
-          chmod +x dist/startup.sh
+          # Create proper startup files
+          echo '#!/bin/sh
+          cd /home/site/wwwroot
+          node main.js' > run.sh
+          chmod +x run.sh
+          
+          # Create Azure App Service configuration
+          echo '{
+            "scripts": {
+              "start": "node main.js"
+            }
+          }' > .deployment
+          
+          echo '[config]
+          SCM_DO_BUILD_DURING_DEPLOYMENT = false' >> .deployment
       
       - name: Zip Application for Deployment
         run: |
-          cd match-verse-server/dist
-          zip -r ../../app.zip .
-          cd ../..
-          ls -la app.zip  # List the .zip file for verification
+          cd match-verse-server
+          # Include only necessary files
+          zip -r ../app.zip \
+            .deployment \
+            run.sh \
+            package*.json \
+            node_modules \
+            dist \
+            prisma
       
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v2
@@ -86,12 +79,3 @@ jobs:
           app-name: matchverse
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: app.zip
-      
-      - name: Azure Deployment Logs
-        if: always()
-        run: |
-          # Replace with your actual app service URL
-          curl -L -o deploy-log.txt https://matchverse.azurewebsites.net/api/logs || echo "Could not fetch logs"
-          if [ -f deploy-log.txt ]; then
-            cat deploy-log.txt
-          fi
