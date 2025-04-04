@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -21,10 +21,7 @@ jobs:
 
       - name: Install Dependencies
         working-directory: match-verse-server
-        run: |
-          npm config set ignore-scripts true
-          npm ci
-          npm config set ignore-scripts false
+        run: npm ci
 
       - name: Generate Prisma Client
         working-directory: match-verse-server
@@ -55,7 +52,7 @@ jobs:
         run: |
           mkdir -p deployment
           cp -r dist package.json package-lock.json prisma node_modules/.prisma deployment/
-          cd deployment && npm ci --omit=dev
+          cd deployment && npm install --production
 
       - name: Deploy to Azure
         uses: azure/webapps-deploy@v2
