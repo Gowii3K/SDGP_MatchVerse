@@ -10,55 +10,59 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: 📦 Checkout Repo
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: 🛠️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
           cache: 'npm'
           cache-dependency-path: 'match-verse-server/package-lock.json'
 
-      - name: Install Dependencies
+      - name: 📥 Install Dependencies
         working-directory: match-verse-server
         run: npm ci
 
-      - name: Generate Prisma Client
+      - name: ⚙️ Generate Prisma Client
         working-directory: match-verse-server
         run: |
           npx prisma generate
           ls -la node_modules/.prisma/client/
 
-      - name: Install Build Tools
+      - name: 🧪 Check tsconfig.build.json Exists
+        working-directory: match-verse-server
+        run: |
+          echo "Checking tsconfig.build.json..."
+          ls -la
+          if [ -f tsconfig.build.json ]; then echo "✅ tsconfig.build.json found"; else echo "❌ tsconfig.build.json MISSING"; exit 1; fi
+
+      - name: 🛠️ Install Nest CLI (Dev)
         working-directory: match-verse-server
         run: |
           npm install --save-dev @nestjs/cli @types/express @types/node
           echo "Nest CLI version: $(npx nest --version)"
 
-      - name: Build Application
+      - name: 🏗️ Build Application
         working-directory: match-verse-server
         run: |
-          npx nest build --tsc --config tsconfig.build.json
+          npx nest build --config tsconfig.build.json
           ls -la dist/
 
-      - name: Run Prisma Migrations
+      - name: 🚀 Run Prisma Migrations
         working-directory: match-verse-server
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npx prisma migrate deploy
 
-      - name: Create Deployment Package
+      - name: 📦 Create Deployment Package
         working-directory: match-verse-server
         run: |
           mkdir -p deployment
-          cp -r dist package.json package-lock.json prisma tsconfig.json tsconfig.build.json deployment/
-          cd deployment
-          npm ci --production
-          ls -la
-          ls -la dist/
-          ls -la prisma/
+          cp -r dist package.json package-lock.json prisma tsconfig.build.json node_modules/.prisma deployment/
+          cd deployment && npm install --production
 
-      - name: Deploy to Azure
+      - name: 🚢 Deploy to Azure
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'matchverse'
