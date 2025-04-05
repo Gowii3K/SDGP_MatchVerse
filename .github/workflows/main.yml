@@ -41,18 +41,23 @@ jobs:
           npx nest build
           ls -la dist/
 
+      # Optional: Comment out if database isn't accessible from GitHub Actions
       - name: Run Prisma Migrations
         working-directory: match-verse-server
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npx prisma migrate deploy
+        continue-on-error: true # Allow workflow to proceed if migrations fail
 
       - name: Create Deployment Package
         working-directory: match-verse-server
         run: |
           mkdir -p deployment
           cp -r dist package.json package-lock.json prisma node_modules/.prisma deployment/
-          cd deployment && npm install --production
+          cd deployment
+          npm install --production
+          # Verify the deployment package contents
+          ls -la
 
       - name: Deploy to Azure
         uses: azure/webapps-deploy@v2
@@ -60,3 +65,6 @@ jobs:
           app-name: 'matchverse'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: match-verse-server/deployment
+          # Specify the startup command for Azure App Service
+          slot-name: 'production' # Optional: Remove if not using slots
+          startup-command: 'node dist/main.js' # Ensure this matches your app's entry point
