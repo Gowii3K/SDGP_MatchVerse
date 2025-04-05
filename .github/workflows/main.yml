@@ -38,7 +38,7 @@ jobs:
       - name: Build Application
         working-directory: match-verse-server
         run: |
-          npx nest build
+          npx nest build --tsc --config tsconfig.build.json
           ls -la dist/
 
       - name: Run Prisma Migrations
@@ -51,8 +51,12 @@ jobs:
         working-directory: match-verse-server
         run: |
           mkdir -p deployment
-          cp -r dist package.json package-lock.json prisma node_modules/.prisma deployment/
-          cd deployment && npm install --production
+          cp -r dist package.json package-lock.json prisma tsconfig.json tsconfig.build.json deployment/
+          cd deployment
+          npm ci --production
+          ls -la
+          ls -la dist/
+          ls -la prisma/
 
       - name: Deploy to Azure
         uses: azure/webapps-deploy@v2
@@ -60,3 +64,9 @@ jobs:
           app-name: 'matchverse'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: match-verse-server/deployment
+
+      - name: Set Azure Startup Command
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az webapp config set --resource-group <your-resource-group> --name matchverse --startup-file "node dist/main.js"
