@@ -41,12 +41,13 @@ async function bootstrap() {
     .setTitle('MatchVerse API')
     .setDescription('API documentation for the MatchVerse backend')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document); 
+  SwaggerModule.setup('api', app, document);
 
-  const port = process.env.PORT || 8080;
+  const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
 
   console.log(`🚀 Server is running on port ${port}`);

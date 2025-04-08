@@ -2,8 +2,7 @@ name: Build and Deploy to Azure App Service
 
 on:
   push:
-    branches:
-      - app-service-deployment
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -11,57 +10,61 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v3
+      - name:  Checkout Repo
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name:  Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
           cache: 'npm'
-          cache-dependency-path: match-verse-server/package-lock.json
+          cache-dependency-path: 'match-verse-server/package-lock.json'
 
-      - name: Install Dependencies
-        run: |
-          cd match-verse-server
-          npm ci --omit=dev  # Install only production dependencies
+      - name:  Install Dependencies
+        working-directory: match-verse-server
+        run: npm ci
 
-      - name: Install NestJS CLI
+      - name:  Generate Prisma Client
+        working-directory: match-verse-server
         run: |
-          cd match-verse-server
-          npm install -g @nestjs/cli  # Ensure `nest` command is available
-
-      - name: Install Missing Type Definitions
-        run: |
-          cd match-verse-server
-          npm install --save-dev @types/express  # ✅ Fix Express.Multer.File errors
-
-      - name: Generate Prisma Client
-        run: |
-          cd match-verse-server
           npx prisma generate
+          ls -la node_modules/.prisma/client/
 
-      - name: Run Prisma Migrations
+      - name:  Check tsconfig.build.json Exists
+        working-directory: match-verse-server
+        run: |
+          echo "Checking tsconfig.build.json..."
+          ls -la
+          if [ -f tsconfig.build.json ]; then echo "✅ tsconfig.build.json found"; else echo "❌ tsconfig.build.json MISSING"; exit 1; fi
+
+      - name:  Install Nest CLI 
+        working-directory: match-verse-server
+        run: |
+          npm install --save-dev @nestjs/cli @types/express @types/node
+          echo "Nest CLI version: $(npx nest --version)"
+
+      - name:  Build Application
+        working-directory: match-verse-server
+        run: |
+          npx nest build --config tsconfig.build.json
+          ls -la dist/
+
+      - name:  Run Prisma Migrations
+        working-directory: match-verse-server
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          cd match-verse-server
-          npx prisma migrate deploy
+        run: npx prisma migrate deploy
 
-      - name: Build Application
+      - name:  Create Deployment Package
+        working-directory: match-verse-server
         run: |
-          cd match-verse-server
-          nest build  # ✅ Now `nest build` should work
+          mkdir -p deployment
+          cp -r dist package.json package-lock.json prisma tsconfig.build.json node_modules/.prisma deployment/
+          cd deployment && npm install --production
 
-      - name: Zip Application for Deployment
-        run: |
-          cd match-verse-server
-          zip -r ../app.zip . deployment package*.json dist prisma
-
-      - name: Deploy to Azure App Service
+      - name:  Deploy to Azure
         uses: azure/webapps-deploy@v2
         with:
-          app-name: matchverse
+          app-name: 'matchverse'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: app.zip
-
+          package: match-verse-server/deployment
