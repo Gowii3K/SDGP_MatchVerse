@@ -15,6 +15,8 @@ import { VenuesService } from './venues.service';
 import { UpdateVenueDto } from './dto/update-venue.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RateVenueDto } from './dto/rate-venue.dto';
+import { ApiBody, ApiTags } from '@nestjs/swagger';
+
 
 @Controller('venues')
 export class VenuesController {
